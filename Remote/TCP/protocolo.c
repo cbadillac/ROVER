@@ -1,0 +1,202 @@
+#ifndef __COMMON_INCLUDES__
+#define __COMMON_INCLUDES__
+
+  #include <arpa/inet.h>
+  #include <netinet/in.h>
+  #include <sys/socket.h>
+  #include <sys/types.h>
+  #include <unistd.h>
+  #include <termios.h>
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <string.h>
+  #include <time.h>
+
+#endif
+
+#include "headers/protocolo.h"
+
+/*** COMMUNICATION **/
+
+void connection_was_closed()
+{
+    perror("Conexión terminada");  // The next printf has an '\n' :D
+    // some mutex action
+    
+    return;
+}
+
+/* CLIENT SOCKET SETTING */
+
+struct socket_info client_connection_setup( char* ip, unsigned short port)
+{
+	int     server_Socket;
+    struct  sockaddr_in server_Addr;
+    char    error_n = 0;
+    
+    struct socket_info buffer = (struct socket_info){.socket = 0,
+                                                          .socket_Addr = server_Addr,
+                                                          .error = 0};
+
+    socklen_t socket_size = sizeof( server_Addr);
+    
+    /** Socket creation **/
+
+    if( (server_Socket = socket( AF_INET, SOCK_STREAM, 0)) < 0)
+    {
+        perror("[Error 1] The socket couldn't be created.\n");
+        buffer.error = server_Socket;
+        
+        return buffer;
+    }
+
+    /** SOCKET_ADDR init & CONNECTION **/
+
+    memset( &server_Addr, 0, socket_size);
+    server_Addr.sin_family 		= AF_INET;
+    server_Addr.sin_port 		= htons( port);
+    inet_aton( ip , &server_Addr.sin_addr);
+
+    if( connect( server_Socket, (struct sockaddr*)&server_Addr, socket_size) < 0)
+    {
+        perror("[Error 2] Couldn't connect, ");
+        buffer.error = -1;
+        
+        return buffer;
+    }
+
+    buffer = (struct socket_info){.socket = server_Socket,
+			 					  .socket_Addr = server_Addr,
+			 					  .error = error_n};
+
+	return buffer;
+}
+
+/* SERVER SOCKET SETTING */
+
+struct socket_info server_connection_setup( unsigned short port)
+{
+	uint8_t error_n;
+    int server_Socket;
+    struct sockaddr_in server_Addr;
+    socklen_t socket_size = sizeof( server_Addr);
+
+    /**** SOCKET INIT****/
+
+    if( (server_Socket = socket( AF_INET, SOCK_STREAM, 0)) < 0)
+    {
+        perror("[Error 1] The socket couldn't be created.\n");
+        error_n = 1;
+    }
+
+    /** SOCKET_ADDR INIT **/
+
+    memset( (char*) &server_Addr, 0, socket_size);
+    server_Addr.sin_family      = AF_INET;
+    server_Addr.sin_addr.s_addr = htonl( INADDR_ANY);
+    server_Addr.sin_port        = htons( port);
+
+    /** SOCKET CONNECTION **/
+
+    if( bind( server_Socket, (struct sockaddr*)&server_Addr, socket_size) < 0)
+    {
+        perror("[Error 2] Couldn't bind the socket\n");
+        error_n = 2;
+    }
+    
+    /** SOCKET LISTENING **/
+
+    if( listen( server_Socket, __MAX_CONNECTIONS) < 0)
+    {
+        perror("[Error 3] There was an error while listening the socket\n");
+        error_n = 3;
+    }
+
+    struct socket_info buffer = (struct socket_info){.socket = server_Socket,
+                                                          .socket_Addr = server_Addr,
+                                                          .error = error_n};
+
+    return buffer;
+}
+
+struct socket_info server_connection_accept( int server_Socket)
+{
+	uint8_t error_n;
+    
+	int client_Socket;
+    struct sockaddr_in client_Addr;
+	unsigned int socket_size = sizeof( struct socketaddr*);
+
+	if( (client_Socket = accept( server_Socket, (struct sockaddr *)&client_Addr, &socket_size)) <0 )
+	{
+		perror("[Error 4] Couldn't accept the connection\n");
+		error_n = 4;
+	}
+
+	struct socket_info buffer = (struct socket_info){.socket = client_Socket,
+	 		  					 					 .socket_Addr = client_Addr,
+	 		  					 					 .error = error_n};
+
+	return buffer;
+}
+
+/* RECV() & SEND() "API" */
+
+size_t recv_all(int sockfd, void *buffer, size_t len, int flags)
+{ 
+
+    size_t to_read = len;
+    char  *buffer_ptr = (char*) buffer;
+
+    while (to_read > 0)
+    {
+        ssize_t rsz = recv(sockfd, buffer_ptr, to_read, flags);
+        if (rsz <= 0)
+            return rsz;     /* Error or other end closed cnnection */
+
+        to_read -= rsz;  	/* Read less next time */
+        buffer_ptr += rsz;  /* Next buffer position to read into */
+    }
+
+    return len;
+}
+
+size_t send_all(int sockfd, void *buffer, size_t len, int flags)
+{ 
+
+    size_t to_write = len;
+    char  *buffer_ptr = (char*) buffer;
+
+    while (to_write > 0)
+    {
+        ssize_t rsz = send(sockfd, buffer_ptr, to_write, flags);
+        if (rsz <= 0)
+            return rsz;     /* Error or other end closed cnnection */
+
+        to_write -= rsz;    /* Read less next time */
+        buffer_ptr += rsz;  /* Next buffer position to read into */
+    }
+
+    return len;
+}
+
+char getcha() {
+        char buf = 0;
+        struct termios old = {0};
+        if (tcgetattr(0, &old) < 0)
+                perror("tcsetattr()");
+        old.c_lflag &= ~ICANON;
+        old.c_lflag &= ~ECHO;
+        old.c_cc[VMIN] = 1;
+        old.c_cc[VTIME] = 0;
+        if (tcsetattr(0, TCSANOW, &old) < 0)
+                perror("tcsetattr ICANON");
+        if (read(0, &buf, 1) < 0)
+                perror ("read()");
+        old.c_lflag |= ICANON;
+        old.c_lflag |= ECHO;
+        if (tcsetattr(0, TCSADRAIN, &old) < 0)
+                perror ("tcsetattr ~ICANON");
+        return (buf);
+}
+

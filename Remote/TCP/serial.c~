@@ -1,0 +1,24 @@
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+#include <ctype.h>
+
+#include "arduino-serial.c"
+#include "serial_protocol.c"
+#include "headers/serial.h"
+
+int fd = 0;
+
+int s_init
+{
+	init_serial();
+}
+ int serial_send(char c)
+{
+   
+    
+    return statusError;
+}
+

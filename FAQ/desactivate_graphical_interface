@@ -1,0 +1,7 @@
+You can leave it and just make your default boot as a text mode and if once you need a GUI you can restore it easily.
+
+open /etc/default/grub as root in your favourite text editor, for example sudo vi /etc/default/grub And change the line GRUB_CMDLINE_LINUX_DEFAULT="quiet splash" To GRUB_CMDLINE_LINUX_DEFAULT="text" and update Grub.sudo update-grub Your system will then always boot to text mode.
+
+If you once want to use GUI you can easly start lightdm, the GUI:
+
+sudo service lightdm start

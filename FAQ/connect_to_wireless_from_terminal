@@ -1,0 +1,10 @@
+Hi to start you can scan from Terminal with the command
+Code:
+sudo iwlist wlan0 scan
+Then try
+Code:
+iwconfig wlan0 essid NETWORK_ID key s:WIRELESS_KEY
+Where NETWORK_ID is name of network, And WIRELESS_KEY is the key. Then
+Code:
+sudo dhclient wlan0
+Wlan0 is your wireless device
